@@ -9,27 +9,33 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable.Stack
 import scala.collection.mutable.ListBuffer
 import play.api.libs.json.Json
+import play.api.libs.json._
+import java.io.IOException
 
 @Singleton
 class CalculusController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {  
   
   private val logger = Logger(getClass)
   
-  def read(query: String): Action[AnyContent] = {
+  def calculus(query: String): Action[AnyContent] = {
     Action { implicit request =>
-     val decodedExpression = getUTF8Query(query)
-     var cleanedExpression = cleanQuery(decodedExpression)
-     var RPNExpression = convertToRPNExpression(cleanedExpression)
-     var result = calculate(RPNExpression)
-     Ok(Json.obj(
-        "error" -> false,
-        "result" -> result,
-        "message" -> "It's okay."
-      ))
+     try{
+       val decodedExpression = getUTF8Query(query)
+       var cleanedExpression = cleanQuery(decodedExpression)
+       var RPNExpression = convertToRPNExpression(cleanedExpression)
+       var result = calculate(RPNExpression)
+       Ok(getResultJson(false, result, null))
+     }
+     catch{
+       case e: Throwable => Ok(getResultJson(true, 1.0, e.toString()))
+     }
     }
-  }
-  
+  } 
+
   def getUTF8Query(query: String) : String = {
+    if(query.isEmpty){
+      throw new IllegalArgumentException("Query is empty.")   
+    }
     val base64RegEx = """^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$""".r   
     val is_base64 = base64RegEx.pattern.matcher(query).matches
     val string = is_base64 match{
@@ -46,6 +52,9 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     var result :String = "" //build a clear string with spaces between every digit/symbol
     for(x <- listofsymbols){
       result = result + x + " "             
+    }
+    if(result.replaceAll("\\s+", "").isEmpty){ //check if anything left after cleaning
+      throw new IllegalArgumentException("Query doesn't have any digits or symbols")   
     }
     return result
   }
@@ -68,10 +77,11 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     for(x <- res){
       stringlist = stringlist + x + " "             
     }
-    return stringlist.replaceAll("[()]","")
+    return stringlist.replaceAll("[()]","").replaceAll(" +", " ") //remove () and additional spaces 
   }
   
   def calculate(expression: String) : Double = {
+    try {
     var stack = Stack[Double]()
     for(token <- expression.split("\\s+")){
       logger.trace("calculate: hi it's here " + token)
@@ -85,11 +95,16 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
         case "/" => 
           var divisor = stack.pop().toDouble
           stack.push(stack.pop() / divisor)
+        case "" => //do nothing if empty string
         case _ =>  stack.push(token.toDouble)
       }    
     } 
   
     return stack.pop()
+    }
+    catch{
+      case e: Throwable => throw new IllegalArgumentException("Problem with calculations has occurred. Please check if the expression is written correctly.")       
+    }
   }
   
   class TreeNode (v: Int, s: String) {
@@ -159,4 +174,15 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return rst
   } 
   
+    def getResultJson(error :Boolean, result :Double, message :String) : JsValue = {      
+      val rst = error match{
+        case true => Json.obj(
+        "error" -> true,
+        "message" -> message)  
+        case false => Json.obj(
+        "error" -> false,
+        "result" -> result)  
+      }
+      return rst
+  }
 }
