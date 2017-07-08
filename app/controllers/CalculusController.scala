@@ -8,6 +8,7 @@ import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.collection.mutable.Stack
 import scala.collection.mutable.ListBuffer
+import play.api.libs.json.Json
 
 @Singleton
 class CalculusController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {  
@@ -16,17 +17,37 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   
   def read(query: String): Action[AnyContent] = {
     Action { implicit request =>
-      val base64RegEx = """^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$""".r   
-      //check if input is UTF*?
-      val is_base64 = base64RegEx.pattern.matcher(query).matches
-      
-      val string = is_base64 match{
-        case true => decodeBase64toUTF8(query)
-        case false => calculateExpression(query)
-      }      
-     
-      Ok("hi " + string)
+     val decodedExpression = getUTF8Query(query)
+     var cleanedExpression = cleanQuery(decodedExpression)
+     var RPNExpression = convertToRPNExpression(cleanedExpression)
+     var result = calculate(RPNExpression)
+     Ok(Json.obj(
+        "error" -> false,
+        "result" -> result,
+        "message" -> "It's okay."
+      ))
     }
+  }
+  
+  def getUTF8Query(query: String) : String = {
+    val base64RegEx = """^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$""".r   
+    val is_base64 = base64RegEx.pattern.matcher(query).matches
+    val string = is_base64 match{
+        case true => return decodeBase64toUTF8(query)
+        case false => query
+    }      
+    return query
+  }
+  
+  def cleanQuery(expression: String) : String = {    
+    val nospaces = expression.replaceAll("\\s+", "") //clean all empty spaces between letters    
+    val onlyallowedsymbols = nospaces.replaceAll("[^\\(\\)\\*\\+\\-\\d/\\s]", "") //clean all chars except +-*/()    
+    val listofsymbols = onlyallowedsymbols.split("(?<=[-+*/()])|(?=[-+*/()])") //separate digits from symbols    
+    var result :String = "" //build a clear string with spaces between every digit/symbol
+    for(x <- listofsymbols){
+      result = result + x + " "             
+    }
+    return result
   }
   
   def decodeBase64toUTF8(expression: String) : String = {
@@ -35,7 +56,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return stringQuery;
   }
   
-  def calculateExpression(expression: String) : String = {      
+  def convertToRPNExpression(expression: String) : String = {      
     val rst = new ListBuffer[String]()
     val finalthing = new ListBuffer[String]()
     for(x <- expression.split(" ")){
@@ -45,16 +66,12 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     val res = getSymbols(finalthing, root) 
     var stringlist :String = ""
     for(x <- res){
-      x match{
-        case "(" => stringlist
-        case ")" => stringlist
-        case _ => stringlist = stringlist + x + " " 
-      }         
+      stringlist = stringlist + x + " "             
     }
-    return calculate(stringlist);
+    return stringlist.replaceAll("[()]","")
   }
   
-  def calculate(expression: String) : String = {
+  def calculate(expression: String) : Double = {
     var stack = Stack[Double]()
     for(token <- expression.split("\\s+")){
       logger.trace("calculate: hi it's here " + token)
@@ -72,7 +89,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
       }    
     } 
   
-    return "answer: " + stack.pop()
+    return stack.pop()
   }
   
   class TreeNode (v: Int, s: String) {
