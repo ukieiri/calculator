@@ -3,24 +3,25 @@ package controllers
 import javax.inject._
 import play.api._
 import play.api.mvc._
-import play.api.Logger
 import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.collection.mutable.Stack
 import scala.collection.mutable.ListBuffer
 import play.api.libs.json.Json
 import play.api.libs.json._
-import java.io.IOException
+
+
 
 @Singleton
 class CalculusController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {  
-  
-  private val logger = Logger(getClass)
-  
+   
   def calculus(query: String): Action[AnyContent] = {
     Action { implicit request =>
      try{
-       val decodedExpression = getUTF8Query(query)
+       val rawquery = request.rawQueryString.replace("%20", "").replace("query=", "")//have to get it from raw as it doesn't pass '+' sign and encode doesn't help 
+       
+       var encodedQuery = encodeRawQuery(rawquery)       
+       val decodedExpression = getUTF8Query(encodedQuery)
        var cleanedExpression = cleanQuery(decodedExpression)
        var RPNExpression = convertToRPNExpression(cleanedExpression)
        var result = calculate(RPNExpression)
@@ -31,7 +32,19 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
      }
     }
   } 
-
+  
+  def encodeRawQuery(query: String) : String = {
+       val encoder :org.apache.catalina.util.URLEncoder = new org.apache.catalina.util.URLEncoder
+       encoder.addSafeCharacter('-');
+       encoder.addSafeCharacter('+');
+       encoder.addSafeCharacter('/');
+       encoder.addSafeCharacter('*');
+       encoder.addSafeCharacter('(');
+       encoder.addSafeCharacter(')');
+       encoder.addSafeCharacter('=');
+       return encoder.encode(query)      
+  }
+  
   def getUTF8Query(query: String) : String = {
     if(query.isEmpty){
       throw new IllegalArgumentException("Query is empty.")   
@@ -84,7 +97,6 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     try {
     var stack = Stack[Double]()
     for(token <- expression.split("\\s+")){
-      logger.trace("calculate: hi it's here " + token)
        token match{
         case "+" => 
           stack.push(stack.pop() + stack.pop())   
