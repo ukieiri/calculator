@@ -19,22 +19,22 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
      try{
        //have to get it from raw as it doesn't pass '+' sign (treats it as space) and encoding doesn't help 
        val rawquery = request.rawQueryString       
-       var encodedQuery = encodeRawQuery(rawquery)      
+       val encodedQuery = encodeRawQuery(rawquery)      
        val decodedExpression = getUTF8Query(encodedQuery)
-       var cleanedExpression = cleanQuery(decodedExpression)
-       var RPNExpression = convertToRPNExpression(cleanedExpression)
-       var result = calculate(RPNExpression)
-       Ok(getResultJson(false, result, null))
+       val cleanedExpression = cleanQuery(decodedExpression)
+       val RPNExpression = convertToRPNExpression(cleanedExpression)
+       val result = calculate(RPNExpression)
+       Ok(getResultJson(false, Some(result), null))
      }
      catch{
-       case e: Throwable => Ok(getResultJson(true, 1.0, e.toString()))
+       case e: Throwable => Ok(getResultJson(true, null, e.toString()))
      }
     }
   } 
   
   def encodeRawQuery(query: String) : String = {
     //split in case user sends any other parameters after query
-       var queryOnly = query.replace("%20", "").replace("query=", "").split("&")(0)
+       val queryOnly = query.replace("%20", "").replace("query=", "").split("&")(0)
        val encoder :org.apache.catalina.util.URLEncoder = new org.apache.catalina.util.URLEncoder
        encoder.addSafeCharacter('-')
        encoder.addSafeCharacter('+')
@@ -69,6 +69,12 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return query
   }
   
+  def decodeBase64toUTF8(expression: String) : String = {
+    val decoded = Base64.getDecoder.decode(expression)
+    val stringQuery = new String(decoded, StandardCharsets.UTF_8)    
+    return checkForIlligalStringinUTF8(stringQuery)
+  }
+  
   def cleanQuery(expression: String) : ArrayBuffer[String] = {  
     //remove all empty spaces between letters 
     val nospaces = expression.replaceAll("\\s+", "")    
@@ -77,24 +83,17 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     //separate digits from symbols to array
     val listofsymbols = onlyallowedsymbols.split("(?<=[-+*/()])|(?=[-+*/()])") 
     return ArrayBuffer(listofsymbols : _*)
-  }
-  
-  def decodeBase64toUTF8(expression: String) : String = {
-    val decoded = Base64.getDecoder.decode(expression)
-    val stringQuery = new String(decoded, StandardCharsets.UTF_8)    
-    return checkForIlligalStringinUTF8(stringQuery)
-  }
+  }  
   
   def convertToRPNExpression(expression: ArrayBuffer[String]) : ArrayBuffer[String] = {   
     val resultArray = ArrayBuffer[String]()
-    var root :TreeNode = createNodeTreeForRPN(expression)
-    val res = getSymbols(resultArray, root) 
-    return res
+    val root :TreeNode = createNodeTreeForRPN(expression)
+    return getCharactersInRPEOrder(resultArray, root) 
   }
   
   def calculate(expression: ArrayBuffer[String]) : Double = {
     try {
-    var stack = Stack[Double]()
+    val stack = Stack[Double]()
     for(token <- expression){
        token match{
         case "+" => 
@@ -104,7 +103,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
         case "*" => 
           stack.push(stack.pop() * stack.pop())
         case "/" => 
-          var divisor = stack.pop().toDouble
+          val divisor = stack.pop().toDouble
           stack.push(stack.pop() / divisor)
         case "" => //do nothing if empty string
         case _ =>  stack.push(token.toDouble)
@@ -127,10 +126,10 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   
   def createNodeTreeForRPN(expression: ArrayBuffer[String]) : TreeNode = {
     if (expression == null || expression.length == 0) {
-            return null
+            throw new IllegalArgumentException("Problem with calculations has occurred. Please check if the expression is written correctly.")
     }
     
-    var stack = Stack[TreeNode]()
+    val stack = Stack[TreeNode]()
     var base :Int = 0
     var value :Int = 0
     
@@ -142,7 +141,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
                 base -= 10
             }
      value = getWeight(base, token)
-     var node = new TreeNode(value, token)
+     val node = new TreeNode(value, token)
      while (!stack.isEmpty && node.value <= stack.top.value) {
                 node.left = stack.pop()
             }
@@ -151,8 +150,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
             }
      stack.push(node)
     }
-    if (stack == null) {
-            return null
+    if (stack.isEmpty) {
+            throw new IllegalArgumentException("Problem with calculations has occurred. Please check if the expression is written correctly.")
     }
      var rst :TreeNode = stack.pop() 
         while (!stack.isEmpty) {
@@ -171,15 +170,15 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return Integer.MAX_VALUE   
   }
   
-  def getSymbols(rst: ArrayBuffer[String], node: TreeNode) : ArrayBuffer[String] = {
+  def getCharactersInRPEOrder(rst: ArrayBuffer[String], node: TreeNode) : ArrayBuffer[String] = {
     if (node == null) {
-    		return rst
+            throw new IllegalArgumentException("Problem with calculations has occurred. Please check if the expression is written correctly.")
     	}
   	if (node.left != null) {
-  	    getSymbols(rst, node.left)
+  	    getCharactersInRPEOrder(rst, node.left)
   	}
   	if (node.right != null) {
-  		  getSymbols(rst, node.right)
+  		  getCharactersInRPEOrder(rst, node.right)
   	}
   	
      node.symbol match{
@@ -190,7 +189,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return rst
   } 
   
-    def getResultJson(error :Boolean, result :Double, message :String) : JsValue = {      
+    def getResultJson(error :Boolean, result :Some[Double], message :String) : JsValue = {      
       val rst = error match{
         case true => Json.obj(
         "error" -> true,
