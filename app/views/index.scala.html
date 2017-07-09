@@ -1,5 +1,50 @@
 @()
 
-@main("Welcome to Play") {
-  <h1>Welcome to Play!</h1>
+@main("Calculator") {
+  <h1>How to use this calculator?</h1>
+  
+  <article>
+	  <h3>Get Request examples</h3>
+	  <ul>
+		  <li>/calculus?query=(10 + 8) * 9</li>
+		  <li>/calculus?query=(2 - 8) / (9 + 2) </li>
+		  <li>/calculus?query=(52 +17)*(12-9) </li>
+	  </ul>
+  </article>
+  
+  <article>
+	  <h3>Format of the expression and allowed characters</h3>
+	  <ul>
+	  <li>UTF-8
+			<ul>
+				<li>0 - 9</li>
+				<li>+, -, /, *, (, )</li>			
+			</ul>
+	  </li>
+	  <li><a target="_blank" href="http://www.motobit.com/util/base64-decoder-encoder.asp">Base64</a>
+		<ul>
+			<li>a-z, A-Z</li>
+			<li>+, /, =</li>			
+		</ul>
+	  </li>
+	  </ul>
+  </article>
+  
+  <article>
+	  <h3>Known limitations</h3>
+	  <ul>
+	  <li>UTF-8
+			<ul>
+				<li>0 - 9</li>
+				<li>+, -, /, *, (, )</li>			
+			</ul>
+	  </li>
+	  <li><a target="_blank" href="http://www.motobit.com/util/base64-decoder-encoder.asp">Base64</a>
+		<ul>
+			<li>a-z, A-Z</li>
+			<li>+, /, =</li>			
+		</ul>
+	  </li>
+	  </ul>
+  </article>
 }

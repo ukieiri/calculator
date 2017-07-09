@@ -6,10 +6,9 @@ import play.api.mvc._
 import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.collection.mutable.Stack
-import scala.collection.mutable.ListBuffer
 import play.api.libs.json.Json
 import play.api.libs.json._
-
+import scala.collection.mutable.ArrayBuffer
 
 
 @Singleton
@@ -19,9 +18,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     Action { implicit request =>
      try{
        //have to get it from raw as it doesn't pass '+' sign (treats it as space) and encoding doesn't help 
-       val rawquery = request.rawQueryString
-       
-       var encodedQuery = encodeRawQuery(rawquery)       
+       val rawquery = request.rawQueryString       
+       var encodedQuery = encodeRawQuery(rawquery)      
        val decodedExpression = getUTF8Query(encodedQuery)
        var cleanedExpression = cleanQuery(decodedExpression)
        var RPNExpression = convertToRPNExpression(cleanedExpression)
@@ -38,13 +36,13 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     //split in case user sends any other parameters after query
        var queryOnly = query.replace("%20", "").replace("query=", "").split("&")(0)
        val encoder :org.apache.catalina.util.URLEncoder = new org.apache.catalina.util.URLEncoder
-       encoder.addSafeCharacter('-');
-       encoder.addSafeCharacter('+');
-       encoder.addSafeCharacter('/');
-       encoder.addSafeCharacter('*');
-       encoder.addSafeCharacter('(');
-       encoder.addSafeCharacter(')');
-       encoder.addSafeCharacter('='); //needed for base64
+       encoder.addSafeCharacter('-')
+       encoder.addSafeCharacter('+')
+       encoder.addSafeCharacter('/')
+       encoder.addSafeCharacter('*')
+       encoder.addSafeCharacter('(')
+       encoder.addSafeCharacter(')')
+       encoder.addSafeCharacter('=') //needed for base64
        return encoder.encode(queryOnly)      
   }
   
@@ -53,8 +51,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
       throw new IllegalArgumentException("Query is empty.")   
     }
     val base64RegEx = """^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$""".r   
-    val is_base64 = base64RegEx.pattern.matcher(query).matches
-    val string = is_base64 match{
+    val isBase64 = base64RegEx.pattern.matcher(query).matches
+    val string = isBase64 match{
         case true => return decodeBase64toUTF8(query)
         case false => checkForIlligalStringinUTF8(query)
     }      
@@ -62,27 +60,23 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   }
   
   def checkForIlligalStringinUTF8(query: String) : String = {
-      val QueryRegEx = """[0-9\+\*\/\-\s+\/()]+""".r   
-      val is_expression_ok = QueryRegEx.pattern.matcher(query).matches
-      val string = is_expression_ok match{
+      val QueryRegEx = """[0-9\+\/\*\/\-\s+\()]+""".r   
+      val isExpressionOk = QueryRegEx.pattern.matcher(query).matches
+      val string = isExpressionOk match{
         case true => return query
         case false => throw new IllegalArgumentException("Please, make sure to use only numbers (0-9) and special characters including +-/*()")   
     }  
     return query
   }
   
-  def cleanQuery(expression: String) : String = {    
-    val nospaces = expression.replaceAll("\\s+", "") //clean all empty spaces between letters    
-    val onlyallowedsymbols = nospaces.replaceAll("[^\\(\\)\\*\\+\\-\\d/\\s]", "") //clean all chars except +-*/()    
-    val listofsymbols = onlyallowedsymbols.split("(?<=[-+*/()])|(?=[-+*/()])") //separate digits from symbols    
-    var result :String = "" //build a clear string with spaces between every digit/symbol
-    for(x <- listofsymbols){
-      result = result + x + " "             
-    }
-    if(result.replaceAll("\\s+", "").isEmpty){ //check if anything left after cleaning
-      throw new IllegalArgumentException("Query doesn't have any digits or symbols")   
-    }
-    return result
+  def cleanQuery(expression: String) : ArrayBuffer[String] = {  
+    //remove all empty spaces between letters 
+    val nospaces = expression.replaceAll("\\s+", "")    
+    //remove all chars except +-*/() and digits 
+    val onlyallowedsymbols = nospaces.replaceAll("[^\\(\\)\\*\\+\\-\\d/\\s]", "")  
+    //separate digits from symbols to array
+    val listofsymbols = onlyallowedsymbols.split("(?<=[-+*/()])|(?=[-+*/()])") 
+    return ArrayBuffer(listofsymbols : _*)
   }
   
   def decodeBase64toUTF8(expression: String) : String = {
@@ -91,25 +85,17 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return checkForIlligalStringinUTF8(stringQuery)
   }
   
-  def convertToRPNExpression(expression: String) : String = {      
-    val rst = new ListBuffer[String]()
-    val finalthing = new ListBuffer[String]()
-    for(x <- expression.split(" ")){
-      rst += x      
-    }
-    var root :TreeNode = convertExpressionToReversePolishNotation(rst)
-    val res = getSymbols(finalthing, root) 
-    var stringlist :String = ""
-    for(x <- res){
-      stringlist = stringlist + x + " "             
-    }
-    return stringlist.replaceAll("[()]","").replaceAll(" +", " ") //remove () and additional spaces 
+  def convertToRPNExpression(expression: ArrayBuffer[String]) : ArrayBuffer[String] = {   
+    val resultArray = ArrayBuffer[String]()
+    var root :TreeNode = createNodeTreeForRPN(expression)
+    val res = getSymbols(resultArray, root) 
+    return res
   }
   
-  def calculate(expression: String) : Double = {
+  def calculate(expression: ArrayBuffer[String]) : Double = {
     try {
     var stack = Stack[Double]()
-    for(token <- expression.split("\\s+")){
+    for(token <- expression){
        token match{
         case "+" => 
           stack.push(stack.pop() + stack.pop())   
@@ -139,9 +125,9 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     var right: TreeNode = null
   }
   
-  def convertExpressionToReversePolishNotation(expression: ListBuffer[String]) : TreeNode = {
+  def createNodeTreeForRPN(expression: ArrayBuffer[String]) : TreeNode = {
     if (expression == null || expression.length == 0) {
-            return null;
+            return null
     }
     
     var stack = Stack[TreeNode]()
@@ -172,7 +158,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
         while (!stack.isEmpty) {
             rst = stack.pop()
         }
-        return rst;
+        return rst
   }
   
   def getWeight(base: Int, s: String) : Int = {  
@@ -185,7 +171,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     return Integer.MAX_VALUE   
   }
   
-  def getSymbols(rst: ListBuffer[String], node: TreeNode) : ListBuffer[String] = {
+  def getSymbols(rst: ArrayBuffer[String], node: TreeNode) : ArrayBuffer[String] = {
     if (node == null) {
     		return rst
     	}
@@ -195,7 +181,12 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   	if (node.right != null) {
   		  getSymbols(rst, node.right)
   	}
-    rst += node.symbol
+  	
+     node.symbol match{
+      case "(" =>     
+      case ")" =>     
+      case _ => rst += node.symbol 
+    }
     return rst
   } 
   
