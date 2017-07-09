@@ -18,7 +18,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   def calculus(query: String): Action[AnyContent] = {
     Action { implicit request =>
      try{
-       val rawquery = request.rawQueryString.replace("%20", "").replace("query=", "")//have to get it from raw as it doesn't pass '+' sign and encode doesn't help 
+       //have to get it from raw as it doesn't pass '+' sign (treats it as space) and encoding doesn't help 
+       val rawquery = request.rawQueryString
        
        var encodedQuery = encodeRawQuery(rawquery)       
        val decodedExpression = getUTF8Query(encodedQuery)
@@ -34,6 +35,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   } 
   
   def encodeRawQuery(query: String) : String = {
+    //split in case user sends any other parameters after query
+       var queryOnly = query.replace("%20", "").replace("query=", "").split("&")(0)
        val encoder :org.apache.catalina.util.URLEncoder = new org.apache.catalina.util.URLEncoder
        encoder.addSafeCharacter('-');
        encoder.addSafeCharacter('+');
@@ -41,8 +44,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
        encoder.addSafeCharacter('*');
        encoder.addSafeCharacter('(');
        encoder.addSafeCharacter(')');
-       encoder.addSafeCharacter('=');
-       return encoder.encode(query)      
+       encoder.addSafeCharacter('='); //needed for base64
+       return encoder.encode(queryOnly)      
   }
   
   def getUTF8Query(query: String) : String = {
@@ -53,8 +56,18 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
     val is_base64 = base64RegEx.pattern.matcher(query).matches
     val string = is_base64 match{
         case true => return decodeBase64toUTF8(query)
-        case false => query
+        case false => checkForIlligalStringinUTF8(query)
     }      
+    return query
+  }
+  
+  def checkForIlligalStringinUTF8(query: String) : String = {
+      val QueryRegEx = """[0-9\+\*\/\-\s+\/()]+""".r   
+      val is_expression_ok = QueryRegEx.pattern.matcher(query).matches
+      val string = is_expression_ok match{
+        case true => return query
+        case false => throw new IllegalArgumentException("Please, make sure to use only numbers (0-9) and special characters including +-/*()")   
+    }  
     return query
   }
   
@@ -74,8 +87,8 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
   
   def decodeBase64toUTF8(expression: String) : String = {
     val decoded = Base64.getDecoder.decode(expression)
-    val stringQuery = new String(decoded, StandardCharsets.UTF_8)
-    return stringQuery;
+    val stringQuery = new String(decoded, StandardCharsets.UTF_8)    
+    return checkForIlligalStringinUTF8(stringQuery)
   }
   
   def convertToRPNExpression(expression: String) : String = {      
