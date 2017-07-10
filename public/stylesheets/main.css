@@ -1,0 +1,20 @@
+body{
+	background-color:#EEEEEE;	
+	padding:0 10px;
+}
+h1, h3, a {
+	color: #242424;
+}
+
+.api-doc-wrapper{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;	
+	justify-content: space-between;
+	border-top: 1px solid #ccc;
+	border-bottom: 1px solid #ccc;
+	width:560px;
+}
+li{
+	margin-bottom:10px;
+}

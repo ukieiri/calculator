@@ -1,7 +1,20 @@
 @()
 
 @main("Calculator") {
+<head>
+<link rel="stylesheet" media="screen" href="/assets/stylesheets/main.css">
+</head>
+<header>
   <h1>Calculator</h1>
+  <p>This API solves the basic mathematical expression passed in UTF-8 or Base64 format</p>
+ </header>
+  <article>
+	  <h3>API</h3>	  
+	  <div class="api-doc-wrapper">
+	  <p>GET api/calculus?query={query}</p> 
+	  <p>Returns the result of the expression in json format</p> 
+	  </div>
+  </article>  
   
   <article>
 	  <h3>Get Request samples</h3>
@@ -34,7 +47,11 @@
 	  </ul>
   </article>  
   
-  <article>
-	  <h3>Unit tests (matching) are in <a href="https://github.com/ukieiri/calculator/blob/ab44fefd3765de66a0cac98a7305248af92e0dc8/test/controllers/CalculusControllerSpec.scala">/test/CalculusControllerSpec</a></h3>
-  </article> 
+   <article>
+	  <h3>Repository</h3>
+	  <ul>
+	  <li><a target="_blank" href="https://github.com/ukieiri/calculator">GitHub link</a></li>
+	  <li>Unit tests (matching) are in <a target="_blank" href="https://github.com/ukieiri/calculator/blob/master/test/controllers/CalculusControllerSpec.scala">/test/CalculusControllerSpec</a></li>
+	  </ul>
+  </article>    
 }
