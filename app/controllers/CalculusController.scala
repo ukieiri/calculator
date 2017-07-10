@@ -24,7 +24,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
        val cleanedExpression = cleanQuery(decodedExpression)
        val RPNExpression = convertToRPNExpression(cleanedExpression)
        val result = calculate(RPNExpression)
-       Ok(getResultJson(false, Some(result), null))
+       Ok(getResultJson(false, Some(result), null))     
      }
      catch{
        case e: Throwable => Ok(getResultJson(true, null, e.toString()))
@@ -64,7 +64,7 @@ class CalculusController @Inject()(cc: ControllerComponents) extends AbstractCon
       val isExpressionOk = QueryRegEx.pattern.matcher(query).matches
       val string = isExpressionOk match{
         case true => return query
-        case false => throw new IllegalArgumentException("Please, make sure to use only numbers (0-9) and special characters including +-/*()")   
+        case false => throw new IllegalArgumentException("Invalid input. UTF-8: Please, make sure to use only numbers (0-9) and special characters including +-/*(); Base64: please check the allowed character before encoding.")   
     }  
     return query
   }

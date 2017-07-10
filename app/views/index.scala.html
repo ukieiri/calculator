@@ -1,16 +1,20 @@
 @()
 
 @main("Calculator") {
-  <h1>How to use this calculator?</h1>
+  <h1>Calculator</h1>
   
   <article>
-	  <h3>Get Request examples</h3>
+	  <h3>Get Request samples</h3>
 	  <ul>
-		  <li>/calculus?query=(10 + 8) * 9</li>
-		  <li>/calculus?query=(2 - 8) / (9 + 2) </li>
-		  <li>/calculus?query=(52 +17)*(12-9) </li>
+		  <li><a href="/calculus?query=2 * (23/(3*3))- 23 * (2*3)">/calculus?query=2 * (23/(3*3))- 23 * (2*3)</a></li>
+		  <li><a href="/calculus?query=MiAqICgyMy8oMyozKSktIDIzICogKDIqMyk=">/calculus?query=MiAqICgyMy8oMyozKSktIDIzICogKDIqMyk=</a></li>
+		  <li><a href="/calculus?query=5+7">/calculus?query=5+7</a></li>
+		  <li><a href="/calculus?query=(10 + 8) * 9">/calculus?query=(10 + 8) * 9</a></li>
+		  <li><a href="/calculus?query=(2 - 8) / (9 + 2)">/calculus?query=(2 - 8) / (9 + 2)</a> </li>
+		  <li><a href="/calculus?query=(52 +17)*(12-9)">/calculus?query=(52 +17)*(12-9)</a> </li>
+		  <li><a href="/calculus?query=MiooMis5KS0oMys1KQ==">/calculus?query=MiooMis5KS0oMys1KQ== (which is 2*(2+9)-(3+5))</a> </li>
 	  </ul>
-  </article>
+  </article>  
   
   <article>
 	  <h3>Format of the expression and allowed characters</h3>
@@ -28,23 +32,9 @@
 		</ul>
 	  </li>
 	  </ul>
-  </article>
+  </article>  
   
   <article>
-	  <h3>Known limitations</h3>
-	  <ul>
-	  <li>UTF-8
-			<ul>
-				<li>0 - 9</li>
-				<li>+, -, /, *, (, )</li>			
-			</ul>
-	  </li>
-	  <li><a target="_blank" href="http://www.motobit.com/util/base64-decoder-encoder.asp">Base64</a>
-		<ul>
-			<li>a-z, A-Z</li>
-			<li>+, /, =</li>			
-		</ul>
-	  </li>
-	  </ul>
-  </article>
+	  <h3>Unit tests (matching) are in <a href="https://github.com/ukieiri/calculator/blob/ab44fefd3765de66a0cac98a7305248af92e0dc8/test/controllers/CalculusControllerSpec.scala">/test/CalculusControllerSpec</a></h3>
+  </article> 
 }
